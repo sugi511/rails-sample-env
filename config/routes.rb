@@ -12,7 +12,11 @@ Rails.application.routes.draw do
   resources :surveys
   resources :questions
   resources :customers
-  resources :users
+  resources :users do
+    member do
+      get :otp
+    end
+  end
   resources :gcra_settings
 
   root to: 'companies#index'

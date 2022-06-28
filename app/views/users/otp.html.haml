@@ -1,0 +1,21 @@
+%h1 OTP
+
+%table
+  %tbody
+    %tr
+      %td OTP seed
+      %td= @user.otp_secret
+
+    %tr
+      %td OTP URI
+      %td= @rotp.provisioning_uri("nori.setalab@google.com")
+
+    %tr
+      %td QR code for OTP seed
+      %td
+        = tag.svg(){@qrcode}
+    %tr
+      %td OTP
+      %td= @rotp.now
+
+

@@ -1,5 +1,5 @@
 class UsersController < ApplicationController
-  before_action :set_user, only: %i[ show edit update destroy ]
+  before_action :set_user, only: %i[ show edit update destroy otp ]
 
   # GET /users or /users.json
   def index
@@ -17,10 +17,12 @@ class UsersController < ApplicationController
   # GET /users/new
   def new
     @user = User.new
+    @user.otp_secret = ROTP::Base32.random_base32
   end
 
   # GET /users/1/edit
   def edit
+    @user.otp_secret = ROTP::Base32.random_base32 if @user.otp_secret.blank?
   end
 
   # POST /users or /users.json
@@ -61,6 +63,14 @@ class UsersController < ApplicationController
     end
   end
 
+  def otp
+    @rotp = ROTP::TOTP.new(@user.otp_secret, issuer: "SENRI Ltd.")
+    uri = @rotp.provisioning_uri("nori.setalab@google.com")
+    @qrcode = RQRCode::QRCode.new(uri).as_svg(
+      viewbox: true
+    )
+  end
+
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_user
@@ -69,6 +79,6 @@ class UsersController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def user_params
-      params.fetch(:user, {}).permit(:company_id, :name, :api_key, :api_secret)
+      params.fetch(:user, {}).permit(:company_id, :name, :api_key, :api_secret, :otp_secret)
     end
 end
