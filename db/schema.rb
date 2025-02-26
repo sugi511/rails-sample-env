@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2025_02_23_152719) do
+ActiveRecord::Schema.define(version: 2025_02_26_210226) do
 
   create_table "answers", force: :cascade do |t|
     t.integer "survey_id"
@@ -67,6 +67,14 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
     t.index ["company_id"], name: "index_gcra_settings_on_company_id"
   end
 
+  create_table "items", force: :cascade do |t|
+    t.string "name"
+    t.integer "company_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["company_id"], name: "index_items_on_company_id"
+  end
+
   create_table "questions", force: :cascade do |t|
     t.integer "company_id"
     t.string "question", default: "", null: false
@@ -116,6 +124,14 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
     t.index ["company_id"], name: "index_users_on_company_id"
   end
 
+  create_table "vat_rates", force: :cascade do |t|
+    t.decimal "rate"
+    t.integer "item_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["item_id"], name: "index_vat_rates_on_item_id"
+  end
+
   add_foreign_key "answers", "questions"
   add_foreign_key "answers", "surveys"
   add_foreign_key "api_request_logs", "companies"
@@ -123,6 +139,7 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
   add_foreign_key "customers", "companies"
   add_foreign_key "customers", "regions"
   add_foreign_key "gcra_settings", "companies"
+  add_foreign_key "items", "companies"
   add_foreign_key "questions", "companies"
   add_foreign_key "regions", "companies"
   add_foreign_key "regions", "regions", column: "parent_id"
@@ -130,4 +147,5 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
   add_foreign_key "surveys", "customers"
   add_foreign_key "surveys", "users"
   add_foreign_key "users", "companies"
+  add_foreign_key "vat_rates", "items"
 end
