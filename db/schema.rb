@@ -121,6 +121,7 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
   add_foreign_key "api_request_logs", "companies"
   add_foreign_key "api_request_logs", "users"
   add_foreign_key "customers", "companies"
+  add_foreign_key "customers", "regions"
   add_foreign_key "gcra_settings", "companies"
   add_foreign_key "questions", "companies"
   add_foreign_key "regions", "companies"

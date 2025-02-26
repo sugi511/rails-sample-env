@@ -17,6 +17,7 @@
 # Foreign Keys
 #
 #  company_id  (company_id => companies.id)
+#  region_id   (region_id => regions.id)
 #
 require 'test_helper'
 
