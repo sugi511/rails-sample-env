@@ -7,6 +7,9 @@ Rails.application.routes.draw do
     resources :users
     resources :gcra_settings
     resources :regions
+    resources :items do
+      resources :vat_rates
+    end
   end
 
   resources :answers
