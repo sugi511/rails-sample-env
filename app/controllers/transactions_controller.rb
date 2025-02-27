@@ -68,7 +68,7 @@ class TransactionsController < ApplicationController
   def set_transaction
     @transaction = @company.transactions.find(params[:id])
   end
-  
+
   # Only allow a list of trusted parameters through.
   def transaction_params
     params.require(:transaction).permit(:user_id, :customer_id, :transaction_date)

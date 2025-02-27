@@ -24,7 +24,7 @@
 #  vat_rate_id     (vat_rate_id => vat_rates.id)
 #
 class Deal < ApplicationRecord
-  belongs_to :transaction
+  belongs_to :sales_transaction, class_name: 'Transaction', foreign_key: 'transaction_id'
   belongs_to :item
   belongs_to :vat_rate
 

@@ -26,10 +26,10 @@ class Transaction < ApplicationRecord
   belongs_to :company
   belongs_to :user
   belongs_to :customer
-  has_many :deals, dependent: :destroy
+  has_many :deals, foreign_key: 'transaction_id', dependent: :destroy
 
   validates :transaction_date, presence: true
-  
+
   # Calculate total amount excluding VAT
   def total_excl_vat
     deals.sum(&:total_excl_vat)
