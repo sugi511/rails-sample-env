@@ -19,4 +19,5 @@
 class Item < ApplicationRecord
   belongs_to :company
   has_many :vat_rates, dependent: :destroy
+  has_many :deals
 end
