@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2025_02_26_210226) do
+ActiveRecord::Schema.define(version: 2025_02_27_105423) do
 
   create_table "answers", force: :cascade do |t|
     t.integer "survey_id"
@@ -54,6 +54,19 @@ ActiveRecord::Schema.define(version: 2025_02_26_210226) do
     t.integer "region_id"
     t.index ["company_id"], name: "index_customers_on_company_id"
     t.index ["region_id"], name: "index_customers_on_region_id"
+  end
+
+  create_table "deals", force: :cascade do |t|
+    t.integer "transaction_id", null: false
+    t.integer "item_id", null: false
+    t.decimal "price"
+    t.integer "quantity"
+    t.integer "vat_rate_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["item_id"], name: "index_deals_on_item_id"
+    t.index ["transaction_id"], name: "index_deals_on_transaction_id"
+    t.index ["vat_rate_id"], name: "index_deals_on_vat_rate_id"
   end
 
   create_table "gcra_settings", force: :cascade do |t|
@@ -113,6 +126,18 @@ ActiveRecord::Schema.define(version: 2025_02_26_210226) do
     t.index ["user_id"], name: "index_surveys_on_user_id"
   end
 
+  create_table "transactions", force: :cascade do |t|
+    t.integer "company_id", null: false
+    t.integer "user_id", null: false
+    t.integer "customer_id", null: false
+    t.datetime "transaction_date"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["company_id"], name: "index_transactions_on_company_id"
+    t.index ["customer_id"], name: "index_transactions_on_customer_id"
+    t.index ["user_id"], name: "index_transactions_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.integer "company_id", null: false
     t.string "name", default: "", null: false
@@ -138,6 +163,9 @@ ActiveRecord::Schema.define(version: 2025_02_26_210226) do
   add_foreign_key "api_request_logs", "users"
   add_foreign_key "customers", "companies"
   add_foreign_key "customers", "regions"
+  add_foreign_key "deals", "items"
+  add_foreign_key "deals", "transactions"
+  add_foreign_key "deals", "vat_rates"
   add_foreign_key "gcra_settings", "companies"
   add_foreign_key "items", "companies"
   add_foreign_key "questions", "companies"
@@ -146,6 +174,9 @@ ActiveRecord::Schema.define(version: 2025_02_26_210226) do
   add_foreign_key "surveys", "companies"
   add_foreign_key "surveys", "customers"
   add_foreign_key "surveys", "users"
+  add_foreign_key "transactions", "companies"
+  add_foreign_key "transactions", "customers"
+  add_foreign_key "transactions", "users"
   add_foreign_key "users", "companies"
   add_foreign_key "vat_rates", "items"
 end

@@ -10,6 +10,9 @@ Rails.application.routes.draw do
     resources :items do
       resources :vat_rates
     end
+    resources :transactions do
+      resources :deals
+    end
   end
 
   resources :answers

@@ -23,4 +23,7 @@ class Customer < ApplicationRecord
   belongs_to :company
   belongs_to :region
   has_many :surveys
+  has_many :transactions, dependent: :destroy
+
+  validates :name, presence: true
 end
