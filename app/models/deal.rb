@@ -30,4 +30,14 @@ class Deal < ApplicationRecord
 
   validates :price, numericality: { greater_than_or_equal_to: 0 }
   validates :quantity, numericality: { greater_than: 0 }
+
+  # Calculate total amount excluding VAT for a deal
+  def total_excl_vat
+    price * quantity
+  end
+
+  # Calculate total amount including VAT for a deal
+  def total_incl_vat
+    total_excl_vat * (1 + vat_rate.rate / 100.0)
+  end
 end

@@ -29,4 +29,14 @@ class Transaction < ApplicationRecord
   has_many :deals, dependent: :destroy
 
   validates :transaction_date, presence: true
+  
+  # Calculate total amount excluding VAT
+  def total_excl_vat
+    deals.sum(&:total_excl_vat)
+  end
+
+  # Calculate total amount including VAT
+  def total_incl_vat
+    deals.sum(&:total_incl_vat)
+  end
 end
