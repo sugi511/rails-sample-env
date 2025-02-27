@@ -14,6 +14,7 @@ class ItemsController < ApplicationController
 
   # GET /companies/:company_id/items/1 or /companies/:company_id/items/1.json
   def show
+    @vat_rates = @item.vat_rates
   end
 
   # GET /companies/:company_id/items/new

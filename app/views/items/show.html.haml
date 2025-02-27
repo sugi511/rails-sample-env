@@ -1,0 +1,30 @@
+%p#notice= notice
+%h1.text-2xl.font-bold Item Name: #{@item.name}
+
+= link_to 'New VAT Rate', new_company_item_vat_rate_path(@company, @item), class: 'bg-green-500 text-white visited:text-white no-underline hover:bg-green-700 py-2 px-4 rounded'
+
+%h2.text-xl.font-bold.mt-6.mb-4 VAT Rates
+%p.mt-2.text-gray-700.text-sm VAT Rates assigned to this item:
+- if @item.vat_rates.any?
+  %table.w-full.border-collapse
+    %thead
+      %tr.bg-gray-200
+        %th.p-2.border ID
+        %th.p-2.border Rate
+        %th.p-2.border Actions
+    %tbody
+      - @item.vat_rates.each do |vat_rate|
+        %tr.hover:bg-gray-100
+          %td.p-2.border= vat_rate.id
+          %td.p-2.border= vat_rate.rate
+          %td.p-2.border
+            = link_to 'Show', company_item_vat_rate_path(@company, @item, vat_rate), class: 'text-blue-500 visited:text-blue-500 hover:text-blue-700 mr-2'
+            = link_to 'Edit', edit_company_item_vat_rate_path(@company, @item, vat_rate), class: 'text-yellow-500 visited:text-yellow-500 hover:text-yellow-700 mr-2'
+            = link_to 'Destroy', company_item_vat_rate_path(@company, @item, vat_rate), method: :delete, data: { confirm: 'Are you sure?' }, class: 'text-red-500 visited:text-red-500 hover:text-red-700'
+- else
+  %p No VAT rates found for this item.
+
+%br/
+= link_to 'Edit', edit_company_item_path(@company, @item), class: 'bg-yellow-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-yellow-700 mr-2'
+|
+= link_to 'Back', company_items_path(@company), class: 'bg-gray-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-gray-700'

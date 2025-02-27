@@ -1,0 +1,21 @@
+%p#notice= notice
+%h1.text-2xl.font-bold.mb-4 Items for #{@company.name}
+%table.w-full.border-collapse
+  %thead
+    %tr.bg-gray-200
+      %th.p-2.border ID
+      %th.p-2.border Name
+      %th.p-2.border Actions
+  %tbody
+    - @items.each do |item|
+      %tr.hover:bg-gray-100
+        %td.p-2.border= item.id
+        %td.p-2.border= item.name
+        %td.p-2.border
+          = link_to 'Show', company_item_path(@company, item), class: 'text-blue-500 visited:text-blue-500 hover:text-blue-700 mr-2'
+          = link_to 'Edit', edit_company_item_path(@company, item), class: 'text-yellow-500 visited:text-yellow-500 hover:text-green-700 mr-2'
+          = link_to 'Destroy', company_item_path(@company, item), method: :delete, data: { confirm: 'Are you sure?' }, class: 'text-red-500 visited:text-red-500 hover:text-red-700'
+%br/
+= link_to 'New Item', new_company_item_path(@company), class: 'bg-green-500 text-white visited:text-white no-underline hover:bg-green-700 py-2 px-4 rounded' 
+|
+= link_to 'Back', companies_path, class: 'bg-gray-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-gray-700'

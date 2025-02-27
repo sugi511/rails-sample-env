@@ -1,0 +1,9 @@
+%p#notice= notice
+%h1.text-2xl.font-bold.mb-4 VAT Rate Details
+%p
+  %strong.font-bold Rate:
+  = @vat_rate.rate
+%br/
+= link_to 'Edit', edit_company_item_vat_rate_path(@item.company, @item, @vat_rate), class: 'bg-yellow-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-yellow-700 mr-2'
+|
+= link_to 'Back', company_item_vat_rates_path(@item.company, @item), class: 'bg-gray-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-gray-700'

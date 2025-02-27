@@ -1,0 +1,4 @@
+%h1.text-2xl.font-bold.mb-4 New VAT Rate
+= render 'form', vat_rate: @vat_rate
+%br/
+= link_to 'Back', company_item_vat_rates_path(@item.company, @item)

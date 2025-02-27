@@ -1,0 +1,21 @@
+%p#notice= notice
+%h1.text-2xl.font-bold.mb-4 VAT Rates for #{@item.name}
+%table.w-full.border-collapse
+  %thead
+    %tr.bg-gray-200
+      %th.p-2.border ID
+      %th.p-2.border Rate
+      %th.p-2.border Actions
+  %tbody
+    - @vat_rates.each do |vat_rate|
+      %tr.hover:bg-gray-100
+        %td.p-2.border= vat_rate.id
+        %td.p-2.border= vat_rate.rate
+        %td.p-2.border
+          = link_to 'Show', company_item_vat_rate_path(@item.company, @item, vat_rate), class: 'text-blue-500 visited:text-blue-500 hover:text-blue-700 mr-2'
+          = link_to 'Edit', edit_company_item_vat_rate_path(@item.company, @item, vat_rate), class: 'text-yellow-500 visited:text-yellow-500 hover:text-yellow-700 mr-2'
+          = link_to 'Destroy', company_item_vat_rate_path(@item.company, @item, vat_rate), method: :delete, data: { confirm: 'Are you sure?' }, class: 'text-red-500 visited:text-red-500 hover:text-red-700'
+%br/
+= link_to 'New VAT Rate', new_company_item_vat_rate_path(@item.company, @item), class: 'bg-green-500 text-white visited:text-white no-underline hover:bg-green-700 py-2 px-4 rounded'
+|
+= link_to 'Back', company_items_path(@item.company), class: 'bg-gray-500 text-white visited:text-white no-underline px-4 py-2 rounded hover:bg-gray-700'

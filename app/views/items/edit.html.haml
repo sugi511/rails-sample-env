@@ -1,0 +1,6 @@
+%h1.text-2xl.font-bold.mb-4 Edit Item
+= render 'form', item: @item
+%br/
+= link_to 'Show', company_item_path(@company, @item)
+|
+= link_to 'Back', company_items_path(@company)
