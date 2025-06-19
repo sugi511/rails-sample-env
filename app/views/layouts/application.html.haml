@@ -1,14 +1,35 @@
 !!!
-%html
+%html{lang: "en"}
   %head
-    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{charset: "utf-8"}/
+    %meta{name: "viewport", content: "width=device-width, initial-scale=1"}/
     %title RailsGraphqlSample
     = csrf_meta_tags
     = csp_meta_tag
-    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload'
+    = stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track': 'reload'
     = javascript_include_tag 'application', 'data-turbolinks-track': 'reload'
   %body
-    - if current_company
-      %h1= current_company.name
-      %hr
-    = yield
+    %nav.navbar.navbar-expand-lg.navbar-dark.bg-primary
+      .container-fluid
+        = link_to "RailsGraphqlSample", root_path, class: "navbar-brand"
+        %button.navbar-toggler{type: "button", "data-bs-toggle": "collapse", "data-bs-target": "#navbarNav"}
+          %span.navbar-toggler-icon
+        .collapse.navbar-collapse#navbarNav
+          %ul.navbar-nav.me-auto
+            %li.nav-item
+              = link_to "Companies", companies_path, class: "nav-link"
+            %li.nav-item
+              = link_to "Users", users_path, class: "nav-link"
+            %li.nav-item
+              = link_to "Surveys", surveys_path, class: "nav-link"
+          %ul.navbar-nav
+            - if current_company
+              %li.nav-item
+                %span.navbar-text= current_company.name
+
+    .container-fluid.mt-3
+      - if current_company
+        .alert.alert-info.mb-3
+          %strong Current Company:
+          = current_company.name
+      = yield

@@ -71,3 +71,8 @@ gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
 
 gem 'haml-rails'
 gem 'jwt'
+
+# Bootstrap 5
+gem 'bootstrap', '~> 5.3'
+gem 'jquery-rails'
+gem 'sassc-rails'
