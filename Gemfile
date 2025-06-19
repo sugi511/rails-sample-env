@@ -76,3 +76,6 @@ gem 'jwt'
 gem 'bootstrap', '~> 5.3'
 gem 'jquery-rails'
 gem 'sassc-rails'
+
+# OpenAI API
+gem 'ruby-openai'

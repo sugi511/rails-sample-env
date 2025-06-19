@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     resources :regions
     member do
       get :sales_summary
+      post :analyze_sales
     end
   end
 
