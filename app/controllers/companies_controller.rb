@@ -1,5 +1,5 @@
 class CompaniesController < ApplicationController
-  before_action :set_company, only: %i[ show edit update destroy ]
+  before_action :set_company, only: %i[ show edit update destroy sales_summary ]
 
   # GET /companies or /companies.json
   def index
@@ -8,6 +8,12 @@ class CompaniesController < ApplicationController
 
   # GET /companies/1 or /companies/1.json
   def show
+  end
+
+  # GET /companies/1/sales_summary
+  def sales_summary
+    @sales_data = generate_sales_summary_data
+    @customers = @sales_data[:customers_sorted]
   end
 
   # GET /companies/new
@@ -66,5 +72,53 @@ class CompaniesController < ApplicationController
     # Only allow a list of trusted parameters through.
     def company_params
       params.fetch(:company, {}).permit(:name)
+    end
+
+    # Generate sample sales summary data for Customer x Day table
+    def generate_sales_summary_data
+      # Get last month's date range
+      last_month = 1.month.ago
+      start_date = last_month.beginning_of_month
+      end_date = last_month.end_of_month
+
+      # Generate weekly date ranges
+      weeks = []
+      current_date = start_date.beginning_of_week
+
+      while current_date <= end_date
+        week_end = [current_date.end_of_week, end_date].min
+        weeks << {
+          start_date: current_date,
+          end_date: week_end,
+          label: "#{current_date.strftime('%m/%d')} - #{week_end.strftime('%m/%d')}"
+        }
+        current_date = current_date.next_week
+      end
+
+      # Generate sample sales data
+      customers = @company.customers.includes(:region)
+      sales_data = {}
+      customer_totals = {}
+
+      customers.each do |customer|
+        sales_data[customer.id] = {}
+        total = 0
+        weeks.each do |week|
+          # Generate random sales amount ($1,000 - $50,000)
+          amount = rand(1_000..50_000)
+          sales_data[customer.id][week[:label]] = amount
+          total += amount
+        end
+        customer_totals[customer.id] = total
+      end
+
+      # Sort customers by total sales (highest first)
+      customers_sorted = customers.sort_by { |customer| -customer_totals[customer.id] }
+
+      {
+        weeks: weeks,
+        sales: sales_data,
+        customers_sorted: customers_sorted
+      }
     end
 end

@@ -24,6 +24,7 @@
         %td= link_to company.questions.count, company_questions_path(company)
         %td= link_to company.surveys.count, company_surveys_path(company)
         %td= link_to 'Show', company
+        %td= link_to 'Sales Summary', sales_summary_company_path(company), class: 'btn btn-sm btn-info'
         %td= link_to 'Edit', edit_company_path(company)
         %td= link_to 'Destroy', company, method: :delete, data: { confirm: 'Are you sure?' }
 %br/

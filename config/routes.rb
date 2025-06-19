@@ -7,6 +7,9 @@ Rails.application.routes.draw do
     resources :users
     resources :gcra_settings
     resources :regions
+    member do
+      get :sales_summary
+    end
   end
 
   resources :answers

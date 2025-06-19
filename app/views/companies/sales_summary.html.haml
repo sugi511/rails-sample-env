@@ -1,0 +1,70 @@
+%h1= "#{@company.name} - Sales Summary"
+
+.sales-summary-container
+  %h2 Last Month Sales Summary (Customer x Day)
+
+  - if @customers.any?
+    .table-responsive
+      %table.table.table-striped.table-bordered
+        %thead.table-dark
+          %tr
+            %th Customer Name
+            %th Region
+            - @sales_data[:weeks].each do |week|
+              %th= week[:label]
+            %th Total
+        %tbody
+          - @customers.each do |customer|
+            %tr
+              %td= customer.name
+              %td= customer.region&.name || "Not Set"
+              - total = 0
+              - @sales_data[:weeks].each do |week|
+                - amount = @sales_data[:sales][customer.id][week[:label]]
+                - total += amount
+                %td.text-end= number_to_currency(amount, unit: "$", precision: 0)
+              %td.text-end.fw-bold= number_to_currency(total, unit: "$", precision: 0)
+        %tfoot.table-secondary
+          %tr
+            %td.fw-bold{colspan: 2} Total
+            - grand_total = 0
+            - @sales_data[:weeks].each do |week|
+              - week_total = @customers.sum { |c| @sales_data[:sales][c.id][week[:label]] }
+              - grand_total += week_total
+              %td.text-end.fw-bold= number_to_currency(week_total, unit: "$", precision: 0)
+            %td.text-end.fw-bold= number_to_currency(grand_total, unit: "$", precision: 0)
+  - else
+    .alert.alert-info
+      %p No customers are registered for this company yet.
+
+.mt-4
+  = link_to "Back to Company", company_path(@company), class: "btn btn-secondary"
+  = link_to "Companies List", companies_path, class: "btn btn-primary ms-2"
+
+:css
+  .sales-summary-container {
+    margin-top: 20px;
+  }
+
+  .table-responsive {
+    margin-top: 15px;
+  }
+
+  .table th, .table td {
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .text-end {
+    text-align: right;
+  }
+
+  .fw-bold {
+    font-weight: bold;
+  }

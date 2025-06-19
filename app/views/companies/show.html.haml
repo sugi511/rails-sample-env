@@ -1,5 +1,7 @@
 %p#notice= notice
-%div= @company.name
-= link_to 'Edit', edit_company_path(@company)
-|
-= link_to 'Back', companies_path
+%h1= @company.name
+
+.company-actions.mt-3
+  = link_to 'Sales Summary', sales_summary_company_path(@company), class: 'btn btn-info'
+  = link_to 'Edit', edit_company_path(@company), class: 'btn btn-primary ms-2'
+  = link_to 'Back', companies_path, class: 'btn btn-secondary ms-2'
