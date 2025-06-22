@@ -23,6 +23,14 @@
                 %i.fas.fa-paper-plane.me-1
                 送信
             .text-muted.small.mt-1 Enter キーでも送信できます
+            .token-info.mt-2#tokenInfo{style: "display: none;"}
+              .alert.alert-info.small.mb-0
+                %i.fas.fa-info-circle.me-1
+                送信前にトークン数と概算コストを確認します
+            .token-info.mt-2#tokenInfo{style: "display: none;"}
+              .alert.alert-info.small.mb-0
+                %i.fas.fa-info-circle.me-1
+                送信前にトークン数と概算コストを確認します
         - else
           .alert.alert-warning
             %i.fas.fa-exclamation-triangle.me-2
@@ -178,6 +186,98 @@
     cursor: not-allowed;
   }
 
+  .token-info {
+    font-size: 0.875rem;
+  }
+
+  .token-confirmation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+  }
+
+  .token-confirmation-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .token-stats {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .token-stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .token-stat-item:last-child {
+    margin-bottom: 0;
+    font-weight: bold;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+  }
+
+  .token-info {
+    font-size: 0.875rem;
+  }
+
+  .token-confirmation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+  }
+
+  .token-confirmation-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .token-stats {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .token-stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .token-stat-item:last-child {
+    margin-bottom: 0;
+    font-weight: bold;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+  }
+
 :javascript
   document.addEventListener('DOMContentLoaded', function() {
     const messageInput = document.getElementById('messageInput');
@@ -226,6 +326,46 @@
         return;
       }
 
+      // まずトークン数を計算
+      estimateTokensAndConfirm(message);
+    }
+
+    function estimateTokensAndConfirm(message) {
+      // ボタンを一時的に無効化
+      sendButton.disabled = true;
+      sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>計算中...';
+
+      // トークン数を計算
+      fetch(`/companies/${companyId}/estimate_tokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ message: message })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          alert(`エラー: ${data.error}`);
+          return;
+        }
+
+        // カスタム確認モーダルを表示
+        showTokenConfirmationModal(data, message);
+      })
+      .catch(error => {
+        console.error('Token estimation error:', error);
+        alert('トークン数の計算中にエラーが発生しました。それでも続行しますか？') && executeAnalysis(message);
+      })
+      .finally(() => {
+        // ボタンを元に戻す
+        sendButton.disabled = false;
+        sendButton.innerHTML = '<i class="fas fa-paper-plane me-1"></i>送信';
+      });
+    }
+
+    function executeAnalysis(message) {
       // ユーザーメッセージを追加
       addMessage(message, true);
 
@@ -280,6 +420,66 @@
         sendMessage();
       }
     });
+
+    function showTokenConfirmationModal(tokenData, message) {
+      // モーダルHTML作成
+      const modalHtml = `
+        <div class="token-confirmation-modal" id="tokenModal">
+          <div class="token-confirmation-content">
+            <h5 class="mb-3">
+              <i class="fas fa-calculator me-2 text-primary"></i>
+              AI分析実行確認
+            </h5>
+            <p class="mb-3">以下の内容でAI分析を実行しますか？</p>
+
+            <div class="token-stats">
+              <div class="token-stat-item">
+                <span>予想トークン数:</span>
+                <span class="text-primary fw-bold">${tokenData.estimated_tokens.toLocaleString()} tokens</span>
+              </div>
+              <div class="token-stat-item">
+                <span>予想コスト:</span>
+                <span class="text-success fw-bold">$${tokenData.estimated_cost}</span>
+              </div>
+            </div>
+
+            <div class="alert alert-warning small mb-3">
+              <i class="fas fa-exclamation-triangle me-1"></i>
+              ※これは概算値です。実際の値は多少異なる場合があります。
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary" id="cancelTokenBtn">
+                <i class="fas fa-times me-1"></i>
+                キャンセル
+              </button>
+              <button type="button" class="btn btn-primary" id="confirmTokenBtn" data-message="${message.replace(/"/g, '&quot;')}">
+                <i class="fas fa-check me-1"></i>
+                実行する
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // モーダルを表示
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      // イベントリスナーを追加
+      document.getElementById('cancelTokenBtn').addEventListener('click', closeTokenModal);
+      document.getElementById('confirmTokenBtn').addEventListener('click', function() {
+        const message = this.getAttribute('data-message');
+        closeTokenModal();
+        executeAnalysis(message);
+      });
+    }
+
+    function closeTokenModal() {
+      const modal = document.getElementById('tokenModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
 
     // 初期フォーカス
     messageInput.focus();

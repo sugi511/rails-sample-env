@@ -1,7 +1,7 @@
 class CompaniesController < ApplicationController
   require 'openai'
 
-  before_action :set_company, only: %i[ show edit update destroy sales_summary analyze_sales ]
+  before_action :set_company, only: %i[ show edit update destroy sales_summary analyze_sales estimate_tokens ]
 
   # GET /companies or /companies.json
   def index
@@ -16,6 +16,45 @@ class CompaniesController < ApplicationController
   def sales_summary
     @sales_data = generate_sales_summary_data
     @customers = @sales_data[:customers_sorted]
+  end
+
+  # POST /companies/1/estimate_tokens
+  def estimate_tokens
+    user_message = params[:message]
+
+    unless @company.openai_api_key.present?
+      render json: { error: "OpenAI API keyが設定されていません。会社の設定でAPI keyを追加してください。" }, status: :unprocessable_entity
+      return
+    end
+
+    begin
+      # 売上データを取得
+      sales_data = generate_sales_summary_data
+
+      # テーブルデータをテキスト形式に変換
+      table_data = format_sales_data_for_ai(sales_data)
+
+      # プロンプト全体を構築
+      system_message = "あなたは売上データ分析の専門家です。提供された売上データを分析し、日本語で回答してください。"
+      user_content = "以下の売上データを参考にして質問に答えてください：\n\n#{table_data}\n\n質問: #{user_message}"
+
+      # トークン数を概算計算（日本語文字数 × 1.5 + 英数字文字数）
+      estimated_tokens = calculate_estimated_tokens(system_message, user_content)
+
+      # 概算コストを計算（GPT-4の料金を基準）
+      input_cost_per_1k = 0.03  # $0.03 per 1K tokens for GPT-4
+      estimated_cost = (estimated_tokens / 1000.0) * input_cost_per_1k
+
+      render json: {
+        estimated_tokens: estimated_tokens,
+        estimated_cost: estimated_cost.round(4),
+        message_preview: user_content.length > 200 ? "#{user_content[0..200]}..." : user_content
+      }
+
+    rescue => e
+      Rails.logger.error "Token estimation error: #{e.message}"
+      render json: { error: "トークン数の計算中にエラーが発生しました: #{e.message}" }, status: :internal_server_error
+    end
   end
 
   # POST /companies/1/analyze_sales
@@ -36,7 +75,6 @@ class CompaniesController < ApplicationController
 
       # OpenAI APIを呼び出し
       client = OpenAI::Client.new(access_token: @company.openai_api_key)
-      p "以下の売上データを参考にして質問に答えてください：\n\n#{table_data}\n\n質問: #{user_message}"
       response = client.chat(
         parameters: {
           model: "gpt-4.1-nano",
@@ -210,5 +248,25 @@ class CompaniesController < ApplicationController
       output += total_row + "\n"
 
       output
+    end
+
+    # Calculate estimated tokens for the given messages
+    def calculate_estimated_tokens(system_message, user_content)
+      # 簡易的なトークン数計算
+      # 日本語文字は約1.5トークン、英数字は約0.75トークンとして計算
+
+      total_chars = system_message.length + user_content.length
+
+      # 日本語文字数をカウント（ひらがな、カタカナ、漢字）
+      japanese_chars = (system_message + user_content).scan(/[\p{Hiragana}\p{Katakana}\p{Han}]/).length
+
+      # 英数字・記号文字数
+      other_chars = total_chars - japanese_chars
+
+      # 概算トークン数計算
+      estimated_tokens = (japanese_chars * 1.5) + (other_chars * 0.75)
+
+      # 最低でも文字数の半分はトークンとして計算
+      [estimated_tokens, total_chars * 0.5].max.to_i
     end
 end
