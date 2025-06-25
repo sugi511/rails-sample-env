@@ -16,6 +16,10 @@ class CompaniesController < ApplicationController
   def sales_summary
     @sales_data = generate_sales_summary_data
     @customers = @sales_data[:customers_sorted]
+
+    # ページリロード時にスレッドの初期化フラグをリセット
+    # これにより次回のAI分析時に最新の売上データが送信される
+    session[:thread_initialized] = nil
   end
 
   # POST /companies/1/estimate_tokens
@@ -28,18 +32,31 @@ class CompaniesController < ApplicationController
     end
 
     begin
-      # 売上データを取得
-      sales_data = generate_sales_summary_data
+      # 会社ごとのスレッドIDを確認
+      session_key = "openai_thread_#{@company.id}"
+      thread_id = session[session_key]
 
-      # テーブルデータをテキスト形式に変換
-      table_data = format_sales_data_for_ai(sales_data)
+      # 初回かどうかを判定
+      is_first_message = session[:thread_initialized] != thread_id || thread_id.nil?
 
-      # プロンプト全体を構築
-      system_message = "あなたは売上データ分析の専門家です。提供された売上データを分析し、日本語で回答してください。"
-      user_content = "以下の売上データを参考にして質問に答えてください：\n\n#{table_data}\n\n質問: #{user_message}"
+      if is_first_message
+        # 初回の場合：売上データを含めて計算
+        sales_data = generate_sales_summary_data
+        table_data = format_sales_data_for_ai(sales_data)
 
-      # トークン数を概算計算（日本語文字数 × 1.5 + 英数字文字数）
-      estimated_tokens = calculate_estimated_tokens(system_message, user_content)
+        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。"
+        user_content = "以下は#{@company.name}の売上データです：\n\n#{table_data}\n\n質問: #{user_message}"
+
+        estimated_tokens = calculate_estimated_tokens(system_message, user_content)
+        message_type = "初回（売上データ含む）"
+      else
+        # 2回目以降：質問のみで計算
+        system_message = ""
+        user_content = user_message
+
+        estimated_tokens = calculate_estimated_tokens(system_message, user_content)
+        message_type = "継続（質問のみ）"
+      end
 
       # 概算コストを計算（GPT-4の料金を基準）
       input_cost_per_1k = 0.03  # $0.03 per 1K tokens for GPT-4
@@ -48,6 +65,7 @@ class CompaniesController < ApplicationController
       render json: {
         estimated_tokens: estimated_tokens,
         estimated_cost: estimated_cost.round(4),
+        message_type: message_type,
         message_preview: user_content.length > 200 ? "#{user_content[0..200]}..." : user_content
       }
 
@@ -67,38 +85,48 @@ class CompaniesController < ApplicationController
     end
 
     begin
-      # 売上データを取得
-      sales_data = generate_sales_summary_data
-
-      # テーブルデータをテキスト形式に変換
-      table_data = format_sales_data_for_ai(sales_data)
-
-      # OpenAI APIを呼び出し
       client = OpenAI::Client.new(access_token: @company.openai_api_key)
-      response = client.chat(
-        parameters: {
-          model: "gpt-4.1-nano",
-          messages: [
-            {
-              role: "system",
-              content: "あなたは売上データ分析の専門家です。提供された売上データを分析し、日本語で回答してください。"
-            },
-            {
-              role: "user",
-              content: "以下の売上データを参考にして質問に答えてください：\n\n#{table_data}\n\n質問: #{user_message}"
-            }
-          ],
-          max_tokens: 1000,
-          temperature: 0.7
-        }
-      )
 
-      ai_response = response.dig("choices", 0, "message", "content")
+      # 初回かどうかを判定（セッションで管理）
+      session_key = "thread_initialized_#{@company.id}"
+      is_first_message = !session[session_key]
+
+      if is_first_message
+        # 初回の場合：売上データを含めて送信
+        sales_data = generate_sales_summary_data
+        table_data = format_sales_data_for_ai(sales_data)
+
+        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。提供された売上データを分析し、日本語で回答してください。"
+        user_content = "以下は#{@company.name}の売上データです：\n\n#{table_data}\n\n質問: #{user_message}"
+
+        # 初回フラグを設定
+        session[session_key] = true
+      else
+        # 2回目以降：質問のみを送信
+        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。前回提供された売上データを基に、日本語で回答してください。"
+        user_content = user_message
+      end
+
+      # リトライ機能付きでChat APIを呼び出し
+      ai_response = call_openai_with_retry(client, system_message, user_content)
       render json: { response: ai_response }
 
     rescue => e
       Rails.logger.error "OpenAI API Error: #{e.message}"
-      render json: { error: "AI分析中にエラーが発生しました: #{e.message}" }, status: :internal_server_error
+
+      # エラーの種類に応じて適切なメッセージを返す
+      error_message = case e.message
+      when /429/
+        "現在OpenAI APIの使用量制限に達しています。しばらく時間をおいてから再度お試しください。"
+      when /401/
+        "OpenAI APIキーが無効です。会社設定でAPIキーを確認してください。"
+      when /404/
+        "指定されたモデルが利用できません。APIキーの権限を確認してください。"
+      else
+        "AI分析中にエラーが発生しました。しばらく時間をおいてから再度お試しください。"
+      end
+
+      render json: { error: error_message }, status: :internal_server_error
     end
   end
 
@@ -269,4 +297,120 @@ class CompaniesController < ApplicationController
       # 最低でも文字数の半分はトークンとして計算
       [estimated_tokens, total_chars * 0.5].max.to_i
     end
+
+    # リトライ機能付きでOpenAI APIを呼び出し
+    def call_openai_with_retry(client, system_message, user_content, max_retries = 3)
+      retries = 0
+
+      begin
+        response = client.chat(
+          parameters: {
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content: system_message
+              },
+              {
+                role: "user",
+                content: user_content
+              }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7
+          }
+        )
+
+        return response.dig("choices", 0, "message", "content")
+
+      rescue => e
+        retries += 1
+
+        # 429エラー（レート制限）の場合はリトライ
+        if e.message.include?("429") && retries <= max_retries
+          wait_time = 2 ** retries  # 指数バックオフ: 2秒、4秒、8秒
+          Rails.logger.warn "OpenAI API rate limit hit. Retrying in #{wait_time} seconds... (attempt #{retries}/#{max_retries})"
+          sleep(wait_time)
+          retry
+        else
+          # その他のエラーまたは最大リトライ回数に達した場合は例外を再発生
+          raise e
+        end
+      end
+    end
+
+    # 会社ごとのスレッドIDを取得または作成
+    def get_or_create_thread_for_company(client)
+      session_key = "openai_thread_#{@company.id}"
+      thread_id = session[session_key]
+
+      # スレッドが存在しない、または無効な場合は新規作成
+      if thread_id.nil? || !thread_exists?(client, thread_id)
+        thread = client.threads.create
+        thread_id = thread["id"]
+        session[session_key] = thread_id
+        # 新しいスレッドなので初期化フラグをリセット
+        session[:thread_initialized] = nil
+      end
+
+      thread_id
+    end
+
+    # スレッドが存在するかチェック
+    def thread_exists?(client, thread_id)
+      client.threads.retrieve(id: thread_id)
+      true
+    rescue
+      false
+    end
+
+    # アシスタントを取得または作成
+    def get_or_create_assistant(client)
+      # 会社ごとのアシスタントIDをセッションで管理
+      session_key = "openai_assistant_#{@company.id}"
+      assistant_id = session[session_key]
+
+      # アシスタントが存在しない、または無効な場合は新規作成
+      if assistant_id.nil? || !assistant_exists?(client, assistant_id)
+        assistant = client.assistants.create(
+          parameters: {
+            name: "#{@company.name} 売上分析アシスタント",
+            instructions: "あなたは#{@company.name}の売上データ分析の専門家です。提供された売上データを分析し、日本語で分かりやすく回答してください。データの傾向、パターン、改善提案などを含めて回答してください。",
+            model: "gpt-4-1106-preview"
+          }
+        )
+        assistant_id = assistant["id"]
+        session[session_key] = assistant_id
+      end
+
+      assistant_id
+    end
+
+    # アシスタントが存在するかチェック
+    def assistant_exists?(client, assistant_id)
+      client.assistants.retrieve(id: assistant_id)
+      true
+    rescue
+      false
+    end
+
+    # 実行完了を待機
+    def wait_for_run_completion(client, thread_id, run_id, max_wait_time = 30)
+      start_time = Time.current
+
+      loop do
+        run = client.runs.retrieve(thread_id: thread_id, id: run_id)
+        status = run["status"]
+
+        return status if ["completed", "failed", "cancelled", "expired"].include?(status)
+
+        # タイムアウトチェック
+        if Time.current - start_time > max_wait_time
+          return "timeout"
+        end
+
+        sleep(1)
+      end
+    end
+
 end

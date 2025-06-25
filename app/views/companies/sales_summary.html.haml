@@ -434,6 +434,10 @@
 
             <div class="token-stats">
               <div class="token-stat-item">
+                <span>メッセージタイプ:</span>
+                <span class="text-info fw-bold">${tokenData.message_type || '通常'}</span>
+              </div>
+              <div class="token-stat-item">
                 <span>予想トークン数:</span>
                 <span class="text-primary fw-bold">${tokenData.estimated_tokens.toLocaleString()} tokens</span>
               </div>
