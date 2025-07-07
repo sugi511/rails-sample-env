@@ -107,6 +107,8 @@ class CompaniesController < ApplicationController
         user_content = user_message
       end
 
+      p user_content
+
       # リトライ機能付きでChat APIを呼び出し
       ai_response = call_openai_with_retry(client, system_message, user_content)
       render json: { response: ai_response }
@@ -341,7 +343,9 @@ class CompaniesController < ApplicationController
 
     # 会社ごとのスレッドIDを取得または作成
     def get_or_create_thread_for_company(client)
-      session_key = "openai_thread_#{@company.id}"
+      # 仮で1日ごとにsession_keyを変更
+      # 本番ではSales reportの方でsales_analyzerを呼び出すURLでハッシュ値を生成すると良さそう？
+      session_key = "openai_thread_#{@company.id}_#{Time.current.to_date.strftime('%Y%m%d')}"
       thread_id = session[session_key]
 
       # スレッドが存在しない、または無効な場合は新規作成
