@@ -32,30 +32,27 @@ class CompaniesController < ApplicationController
     end
 
     begin
-      # 会社ごとのスレッドIDを確認
-      session_key = "openai_thread_#{@company.id}"
-      thread_id = session[session_key]
-
-      # 初回かどうかを判定
-      is_first_message = session[:thread_initialized] != thread_id || thread_id.nil?
+      # 日毎のスレッドの初期化状況を確認
+      thread_session_key = "thread_initialized_#{@company.id}_#{Time.current.to_date.strftime('%Y%m%d')}"
+      is_first_message = !session[thread_session_key]
 
       if is_first_message
         # 初回の場合：売上データを含めて計算
         sales_data = generate_sales_summary_data
         table_data = format_sales_data_for_ai(sales_data)
 
-        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。"
-        user_content = "以下は#{@company.name}の売上データです：\n\n#{table_data}\n\n質問: #{user_message}"
+        initial_message = "Here is the sales data for #{@company.name}:\n\n#{table_data}\n\nPlease remember this data for future analysis. You will respond in Japanese."
 
-        estimated_tokens = calculate_estimated_tokens(system_message, user_content)
-        message_type = "初回（売上データ含む）"
+        # 初回メッセージとユーザーメッセージの両方を計算
+        total_content = initial_message + "\n\n" + user_message
+        estimated_tokens = calculate_estimated_tokens("", total_content)
+        message_type = "初回（売上データ + 質問）"
+        message_preview = total_content.length > 200 ? "#{total_content[0..200]}..." : total_content
       else
         # 2回目以降：質問のみで計算
-        system_message = ""
-        user_content = user_message
-
-        estimated_tokens = calculate_estimated_tokens(system_message, user_content)
+        estimated_tokens = calculate_estimated_tokens("", user_message)
         message_type = "継続（質問のみ）"
+        message_preview = user_message.length > 200 ? "#{user_message[0..200]}..." : user_message
       end
 
       # 概算コストを計算（GPT-4の料金を基準）
@@ -66,7 +63,8 @@ class CompaniesController < ApplicationController
         estimated_tokens: estimated_tokens,
         estimated_cost: estimated_cost.round(4),
         message_type: message_type,
-        message_preview: user_content.length > 200 ? "#{user_content[0..200]}..." : user_content
+        message_preview: message_preview,
+        thread_date: Time.current.to_date.strftime('%Y年%m月%d日')
       }
 
     rescue => e
@@ -87,31 +85,74 @@ class CompaniesController < ApplicationController
     begin
       client = OpenAI::Client.new(access_token: @company.openai_api_key)
 
-      # 初回かどうかを判定（セッションで管理）
-      session_key = "thread_initialized_#{@company.id}"
-      is_first_message = !session[session_key]
+      # 会社ごとのアシスタントを取得または作成
+      assistant_id = get_or_create_assistant(client)
+
+      # 日毎のスレッドを取得または作成
+      thread_id = get_or_create_thread_for_company(client)
+
+      # スレッドが初期化されていない場合は売上データを送信
+      thread_session_key = "thread_initialized_#{@company.id}_#{Time.current.to_date.strftime('%Y%m%d')}"
+      is_first_message = !session[thread_session_key]
 
       if is_first_message
-        # 初回の場合：売上データを含めて送信
+        # 初回の場合：売上データを含めたメッセージを送信
         sales_data = generate_sales_summary_data
         table_data = format_sales_data_for_ai(sales_data)
 
-        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。提供された売上データを分析し、日本語で回答してください。"
-        user_content = "以下は#{@company.name}の売上データです：\n\n#{table_data}\n\n質問: #{user_message}"
+        initial_message = "Here is the sales data for #{@company.name}:\n\n#{table_data}\n\nPlease remember this data for future analysis. You will respond in Japanese."
+
+        # 初回メッセージを送信
+        client.messages.create(
+          thread_id: thread_id,
+          parameters: {
+            role: "user",
+            content: initial_message
+          }
+        )
 
         # 初回フラグを設定
-        session[session_key] = true
-      else
-        # 2回目以降：質問のみを送信
-        system_message = "あなたは#{@company.name}の売上データ分析の専門家です。前回提供された売上データを基に、日本語で回答してください。"
-        user_content = user_message
+        session[thread_session_key] = true
       end
 
-      p user_content
+      # ユーザーの質問を送信
+      client.messages.create(
+        thread_id: thread_id,
+        parameters: {
+          role: "user",
+          content: user_message
+        }
+      )
 
-      # リトライ機能付きでChat APIを呼び出し
-      ai_response = call_openai_with_retry(client, system_message, user_content)
-      render json: { response: ai_response }
+      # アシスタントで実行
+      run = client.runs.create(
+        thread_id: thread_id,
+        parameters: {
+          assistant_id: assistant_id
+        }
+      )
+
+      # 実行完了を待機
+      run_status = wait_for_run_completion(client, thread_id, run["id"])
+
+      if run_status == "completed"
+        # 最新のメッセージを取得
+        messages = client.messages.list(thread_id: thread_id)
+        ai_response = messages.dig("data", 0, "content", 0, "text", "value")
+
+        render json: { response: ai_response }
+      else
+        error_message = case run_status
+        when "failed"
+          "AI分析の実行に失敗しました。"
+        when "timeout"
+          "AI分析の実行がタイムアウトしました。"
+        else
+          "AI分析の実行中にエラーが発生しました。"
+        end
+
+        render json: { error: error_message }, status: :internal_server_error
+      end
 
     rescue => e
       Rails.logger.error "OpenAI API Error: #{e.message}"
@@ -378,9 +419,28 @@ class CompaniesController < ApplicationController
       if assistant_id.nil? || !assistant_exists?(client, assistant_id)
         assistant = client.assistants.create(
           parameters: {
-            name: "#{@company.name} 売上分析アシスタント",
-            instructions: "あなたは#{@company.name}の売上データ分析の専門家です。提供された売上データを分析し、日本語で分かりやすく回答してください。データの傾向、パターン、改善提案などを含めて回答してください。",
-            model: "gpt-4-1106-preview"
+            name: "#{@company.name} Sales Analysis Assistant",
+            instructions: "You are a sales data analysis expert for #{@company.name}. Your roles include:
+
+1. Sales trend analysis
+2. Customer-wise and region-wise sales performance analysis
+3. Identifying factors behind sales increases/decreases
+4. Providing specific proposals for sales improvement
+5. Strategic advice based on data
+
+Please respond in Japanese and include the following points:
+- Numerical analysis of data
+- Easy-to-understand visual explanations
+- Specific and actionable improvement suggestions
+- Analysis results with clear evidence
+
+Provide deeper insights through continuous dialogue.",
+            model: "gpt-4-1106-preview",
+            tools: [
+              {
+                "type": "code_interpreter"
+              }
+            ]
           }
         )
         assistant_id = assistant["id"]
