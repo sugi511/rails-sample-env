@@ -1,0 +1,490 @@
+%h1= "#{@company.name} - Sales Summary"
+
+.sales-summary-container
+  %h2 Last Month Sales Summary (Customer x Day)
+
+  .ai-chat-section.mb-4
+    .card
+      .card-header
+        %h5.mb-0
+          %i.fas.fa-robot.me-2
+          AI Sales Analysis
+      .card-body
+        - if @company.openai_api_key.present?
+          .chat-container#chatContainer
+            .chat-messages#chatMessages
+              .message.ai-message
+                .message-content
+                  Hello! Please ask me anything about your sales data. Examples: "Who is the highest-selling customer?" "What are the regional sales trends?"
+          .chat-input-section
+            .input-group
+              %input.form-control#messageInput{type: "text", placeholder: "Ask questions about your sales data...", maxlength: "500"}
+              %button.btn.btn-primary#sendButton{type: "button"}
+                %i.fas.fa-paper-plane.me-1
+                Send
+            .text-muted.small.mt-1 You can also send by pressing Enter key
+            .token-info.mt-2#tokenInfo{style: "display: none;"}
+              .alert.alert-info.small.mb-0
+                %i.fas.fa-info-circle.me-1
+                Check token count and estimated cost before sending
+            .token-info.mt-2#tokenInfo{style: "display: none;"}
+              .alert.alert-info.small.mb-0
+                %i.fas.fa-info-circle.me-1
+                Check token count and estimated cost before sending
+        - else
+          .alert.alert-warning
+            %i.fas.fa-exclamation-triangle.me-2
+            To use the AI analysis feature, please set your OpenAI API key in
+            = link_to "company settings", edit_company_path(@company), class: "alert-link"
+            \.
+
+  - if @customers.any?
+    .table-responsive
+      %table.table.table-striped.table-bordered
+        %thead.table-dark
+          %tr
+            %th Customer Name
+            %th Region
+            - @sales_data[:weeks].each do |week|
+              %th= week[:label]
+            %th Total
+        %tbody
+          - @customers.each do |customer|
+            %tr
+              %td= customer.name
+              %td= customer.region&.name || "Not Set"
+              - total = 0
+              - @sales_data[:weeks].each do |week|
+                - amount = @sales_data[:sales][customer.id][week[:label]]
+                - total += amount
+                %td.text-end= number_to_currency(amount, unit: "$", precision: 0)
+              %td.text-end.fw-bold= number_to_currency(total, unit: "$", precision: 0)
+        %tfoot.table-secondary
+          %tr
+            %td.fw-bold{colspan: 2} Total
+            - grand_total = 0
+            - @sales_data[:weeks].each do |week|
+              - week_total = @customers.sum { |c| @sales_data[:sales][c.id][week[:label]] }
+              - grand_total += week_total
+              %td.text-end.fw-bold= number_to_currency(week_total, unit: "$", precision: 0)
+            %td.text-end.fw-bold= number_to_currency(grand_total, unit: "$", precision: 0)
+  - else
+    .alert.alert-info
+      %p No customers are registered for this company yet.
+
+.mt-4
+  = link_to "Back to Company", company_path(@company), class: "btn btn-secondary"
+  = link_to "Companies List", companies_path, class: "btn btn-primary ms-2"
+
+:css
+  .sales-summary-container {
+    margin-top: 20px;
+  }
+
+  .table-responsive {
+    margin-top: 15px;
+  }
+
+  .table th, .table td {
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .text-end {
+    text-align: right;
+  }
+
+  .fw-bold {
+    font-weight: bold;
+  }
+
+  /* AI Chat Styles */
+  .ai-chat-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0;
+  }
+
+  .chat-container {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .chat-messages {
+    min-height: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 15px;
+    background: white;
+    border-radius: 4px;
+  }
+
+  .message {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .message.user-message {
+    justify-content: flex-end;
+  }
+
+  .message.ai-message {
+    justify-content: flex-start;
+  }
+
+  .message-content {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .user-message .message-content {
+    background: #007bff;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+
+  .ai-message .message-content {
+    background: #e9ecef;
+    color: #333;
+    border-bottom-left-radius: 4px;
+  }
+
+  .chat-input-section {
+    padding: 15px;
+    background: white;
+    border-top: 1px solid #dee2e6;
+  }
+
+  .loading-indicator {
+    display: none;
+    text-align: center;
+    padding: 10px;
+    color: #6c757d;
+  }
+
+  .loading-indicator.show {
+    display: block;
+  }
+
+  #messageInput:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+
+  #sendButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .token-info {
+    font-size: 0.875rem;
+  }
+
+  .token-confirmation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+  }
+
+  .token-confirmation-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .token-stats {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .token-stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .token-stat-item:last-child {
+    margin-bottom: 0;
+    font-weight: bold;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+  }
+
+  .token-info {
+    font-size: 0.875rem;
+  }
+
+  .token-confirmation-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+  }
+
+  .token-confirmation-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .token-stats {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .token-stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .token-stat-item:last-child {
+    margin-bottom: 0;
+    font-weight: bold;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+  }
+
+:javascript
+  document.addEventListener('DOMContentLoaded', function() {
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const chatMessages = document.getElementById('chatMessages');
+    const companyId = #{@company.id};
+
+    if (!messageInput || !sendButton || !chatMessages) {
+      return;
+    }
+
+    function addMessage(content, isUser = false) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      contentDiv.textContent = content;
+
+      messageDiv.appendChild(contentDiv);
+      chatMessages.appendChild(messageDiv);
+
+      // スクロールを最下部に
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showLoading() {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'loading-indicator show';
+      loadingDiv.id = 'loadingIndicator';
+      loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+      chatMessages.appendChild(loadingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function hideLoading() {
+      const loadingDiv = document.getElementById('loadingIndicator');
+      if (loadingDiv) {
+        loadingDiv.remove();
+      }
+    }
+
+    function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) {
+        return;
+      }
+
+      // まずトークン数を計算
+      estimateTokensAndConfirm(message);
+    }
+
+    function estimateTokensAndConfirm(message) {
+      // ボタンを一時的に無効化
+      sendButton.disabled = true;
+      sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Calculating...';
+
+      // トークン数を計算
+      fetch(`/companies/${companyId}/estimate_tokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ message: message })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          alert(`Error: ${data.error}`);
+          return;
+        }
+
+        // カスタム確認モーダルを表示
+        showTokenConfirmationModal(data, message);
+      })
+      .catch(error => {
+        console.error('Token estimation error:', error);
+        alert('An error occurred while calculating tokens. Do you want to continue anyway?') && executeAnalysis(message);
+      })
+      .finally(() => {
+        // ボタンを元に戻す
+        sendButton.disabled = false;
+        sendButton.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send';
+      });
+    }
+
+    function executeAnalysis(message) {
+      // ユーザーメッセージを追加
+      addMessage(message, true);
+
+      // 入力フィールドをクリア
+      messageInput.value = '';
+
+      // ボタンを無効化
+      sendButton.disabled = true;
+      messageInput.disabled = true;
+
+      // ローディング表示
+      showLoading();
+
+      // APIリクエスト
+      fetch(`/companies/${companyId}/analyze_sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ message: message })
+      })
+      .then(response => response.json())
+      .then(data => {
+        hideLoading();
+
+        if (data.error) {
+          addMessage(`Error: ${data.error}`, false);
+        } else {
+          addMessage(data.response, false);
+        }
+      })
+      .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        addMessage('Sorry, an error occurred. Please try again.', false);
+      })
+      .finally(() => {
+        // ボタンを有効化
+        sendButton.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
+      });
+    }
+
+    // イベントリスナー
+    sendButton.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function showTokenConfirmationModal(tokenData, message) {
+      // モーダルHTML作成
+      const modalHtml = `
+        <div class="token-confirmation-modal" id="tokenModal">
+          <div class="token-confirmation-content">
+            <h5 class="mb-3">
+              <i class="fas fa-calculator me-2 text-primary"></i>
+              Confirm AI Analysis Execution
+            </h5>
+            <p class="mb-3">Do you want to execute AI analysis with the following content?</p>
+
+            <div class="token-stats">
+              <div class="token-stat-item">
+                <span>Message Type:</span>
+                <span class="text-info fw-bold">${tokenData.message_type || 'Normal'}</span>
+              </div>
+              <div class="token-stat-item">
+                <span>Estimated Tokens:</span>
+                <span class="text-primary fw-bold">${tokenData.estimated_tokens.toLocaleString()} tokens</span>
+              </div>
+              <div class="token-stat-item">
+                <span>Estimated Cost:</span>
+                <span class="text-success fw-bold">$${tokenData.estimated_cost}</span>
+              </div>
+            </div>
+
+            <div class="alert alert-warning small mb-3">
+              <i class="fas fa-exclamation-triangle me-1"></i>
+              ※This is an estimated value. Actual values may vary slightly.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary" id="cancelTokenBtn">
+                <i class="fas fa-times me-1"></i>
+                Cancel
+              </button>
+              <button type="button" class="btn btn-primary" id="confirmTokenBtn" data-message="${message.replace(/"/g, '&quot;')}">
+                <i class="fas fa-check me-1"></i>
+                Execute
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // モーダルを表示
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      // イベントリスナーを追加
+      document.getElementById('cancelTokenBtn').addEventListener('click', closeTokenModal);
+      document.getElementById('confirmTokenBtn').addEventListener('click', function() {
+        const message = this.getAttribute('data-message');
+        closeTokenModal();
+        executeAnalysis(message);
+      });
+    }
+
+    function closeTokenModal() {
+      const modal = document.getElementById('tokenModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    // 初期フォーカス
+    messageInput.focus();
+  });

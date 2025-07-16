@@ -10,5 +10,13 @@
   .field
     = form.label :name
     = form.text_field :name
+  .field
+    = form.label :openai_api_key, "OpenAI API Key"
+    = form.text_field :openai_api_key, placeholder: "sk-...", value: company.openai_api_key
+    %small.form-text.text-muted AI分析機能を使用するためのOpenAI API keyを入力してください
+    - if company.openai_api_key.present?
+      %small.text-success.d-block 現在設定済み: #{company.openai_api_key[0..6]}...
+    - else
+      %small.text-warning.d-block 現在未設定
   .actions
     = form.submit

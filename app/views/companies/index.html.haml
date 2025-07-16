@@ -1,30 +1,48 @@
-%p#notice= notice
-%h1 Companies
-%table
-  %thead
-    %tr
-      %th ID
-      %th Name
-      %th GCRA
-      %th Users
-      %th Regions
-      %th Customers
-      %th Questions
-      %th Surveys
-      %th Actions
-  %tbody
-    - @companies.each do |company|
-      %tr
-        %td= company.id
-        %td= company.name
-        %td= link_to company.gcra_settings.count, company_gcra_settings_path(company)
-        %td= link_to company.users.count, company_users_path(company)
-        %td= link_to company.regions.count, company_regions_path(company)
-        %td= link_to company.customers.count, company_customers_path(company)
-        %td= link_to company.questions.count, company_questions_path(company)
-        %td= link_to company.surveys.count, company_surveys_path(company)
-        %td= link_to 'Show', company
-        %td= link_to 'Edit', edit_company_path(company)
-        %td= link_to 'Destroy', company, method: :delete, data: { confirm: 'Are you sure?' }
-%br/
-= link_to 'New Company', new_company_path
+- if notice
+  .alert.alert-success.alert-dismissible.fade.show
+    = notice
+    %button.btn-close{type: "button", "data-bs-dismiss": "alert"}
+
+.d-flex.justify-content-between.align-items-center.mb-4
+  %h1.mb-0 Companies
+  = link_to 'New Company', new_company_path, class: 'btn btn-primary'
+
+.card
+  .card-body
+    .table-responsive
+      %table.table.table-striped.table-hover
+        %thead.table-dark
+          %tr
+            %th ID
+            %th Company Name
+            %th GCRA Settings
+            %th Users
+            %th Regions
+            %th Customers
+            %th Questions
+            %th Surveys
+            %th Actions
+        %tbody
+          - @companies.each do |company|
+            %tr
+              %td= company.id
+              %td
+                %strong= company.name
+              %td
+                = link_to company.gcra_settings.count, company_gcra_settings_path(company), class: 'badge bg-secondary text-decoration-none'
+              %td
+                = link_to company.users.count, company_users_path(company), class: 'badge bg-info text-decoration-none'
+              %td
+                = link_to company.regions.count, company_regions_path(company), class: 'badge bg-warning text-decoration-none'
+              %td
+                = link_to company.customers.count, company_customers_path(company), class: 'badge bg-success text-decoration-none'
+              %td
+                = link_to company.questions.count, company_questions_path(company), class: 'badge bg-primary text-decoration-none'
+              %td
+                = link_to company.surveys.count, company_surveys_path(company), class: 'badge bg-dark text-decoration-none'
+              %td
+                .btn-group{role: "group"}
+                  = link_to 'Show', company, class: 'btn btn-sm btn-outline-primary'
+                  = link_to 'Sales Summary', sales_summary_company_path(company), class: 'btn btn-sm btn-outline-info'
+                  = link_to 'Edit', edit_company_path(company), class: 'btn btn-sm btn-outline-secondary'
+                  = link_to 'Delete', company, method: :delete, data: { confirm: 'Are you sure?' }, class: 'btn btn-sm btn-outline-danger'

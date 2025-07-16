@@ -7,6 +7,11 @@ Rails.application.routes.draw do
     resources :users
     resources :gcra_settings
     resources :regions
+    member do
+      get :sales_summary
+      post :estimate_tokens
+      post :analyze_sales
+    end
   end
 
   resources :answers

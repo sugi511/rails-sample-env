@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2025_02_23_152719) do
+ActiveRecord::Schema.define(version: 2025_06_19_044243) do
 
   create_table "answers", force: :cascade do |t|
     t.integer "survey_id"
@@ -44,6 +44,7 @@ ActiveRecord::Schema.define(version: 2025_02_23_152719) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "daily_request_limit_api", default: 100
+    t.string "openai_api_key"
   end
 
   create_table "customers", force: :cascade do |t|
